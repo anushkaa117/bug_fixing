@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Flask Web Application
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=dev-secret-key-change-in-production
+      # MongoDB Atlas Configuration (Active)
+      - MONGO_USERNAME=2024081204
+      - MONGO_PASSWORD=anushka
+      - MONGO_CLUSTER=cluster0.fn8yhfs.mongodb.net
+      - MONGO_DATABASE=it
+      - MONGODB_HOST=mongodb+srv://2024081204:anushka@cluster0.fn8yhfs.mongodb.net/it?retryWrites=true&w=majority&appName=Cluster0
+      
+      # MongoDB Configuration (Local Docker MongoDB - Commented out)
+      # - MONGO_USERNAME=bugtracker
+      # - MONGO_PASSWORD=bugtracker123
+      # - MONGO_HOST=mongodb
+      # - MONGO_PORT=27017
+      # - MONGO_DATABASE=bugtracker
+      # Admin User Configuration
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@bugtracker.local
+      - ADMIN_PASSWORD=admin123
+      # Mail Configuration
+      - MAIL_SERVER=localhost
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=1
+      - MAIL_USERNAME=
+      - MAIL_PASSWORD=
+    volumes:
+      - .:/app
+      - ./instance:/app/instance
+    depends_on:
+      - redis
+    networks:
+      - bugtracker-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MongoDB Database (Commented out - using Atlas instead)
+  # mongodb:
+  #   image: mongo:7.0
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=bugtracker
+  #     - MONGO_INITDB_ROOT_PASSWORD=bugtracker123
+  #     - MONGO_INITDB_DATABASE=bugtracker
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #     - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+  #   networks:
+  #     - bugtracker-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # Redis for session storage (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bugtracker-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy (for production-like setup)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - web
+    networks:
+      - bugtracker-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  bugtracker-network:
+    driver: bridge

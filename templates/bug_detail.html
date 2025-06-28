@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Bug #{{ bug.id }} | Bug Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Bug Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2>
+                <span class="badge bg-secondary me-2">#{{ bug.id }}</span>
+                {{ bug.title }}
+            </h2>
+            <div class="mt-2">
+                <span class="badge {{ bug.status_badge_class }} me-2">
+                    {{ bug.status.replace('_', ' ').title() }}
+                </span>
+                <span class="badge {{ bug.priority_badge_class }} me-2">
+                    {{ bug.priority.title() }} Priority
+                </span>
+                {% if bug.category %}
+                <span class="badge bg-info">{{ bug.category }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            {% if bug.created_by == current_user.id or current_user.username == 'admin' %}
+            <a href="{{ url_for('edit_bug', bug_id=bug.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Bug
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Bug Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Bug Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Description</h6>
+                        <p class="text-muted">{{ bug.description | nl2br | safe }}</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Created By</h6>
+                            <p><i class="fas fa-user"></i> {{ bug.creator.username }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Assigned To</h6>
+                            <p>
+                                <i class="fas fa-user-tag"></i> 
+                                {{ bug.assignee.username if bug.assignee else 'Unassigned' }}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Created At</h6>
+                            <p><i class="fas fa-calendar"></i> {{ bug.created_at.strftime('%d %b %Y at %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Last Updated</h6>
+                            <p><i class="fas fa-clock"></i> {{ bug.updated_at.strftime('%d %b %Y at %H:%M') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments"></i> 
+                        Comments ({{ comments|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if comments %}
+                        {% for comment in comments %}
+                        <div class="d-flex mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                     style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <h6 class="mb-0">{{ comment.author.username }}</h6>
+                                    <small class="text-muted">
+                                        {{ comment.created_at.strftime('%d %b %Y at %H:%M') }}
+                                    </small>
+                                </div>
+                                <p class="mb-0 text-muted">{{ comment.comment | nl2br | safe }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="fas fa-comment-slash fa-2x mb-2"></i><br>
+                            No comments yet. Be the first to comment!
+                        </p>
+                    {% endif %}
+
+                    <!-- Add Comment Form -->
+                    <hr>
+                    <form method="POST" action="{{ url_for('add_comment', bug_id=bug.id) }}">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.comment.label(class="form-label") }}
+                            {{ form.comment(class="form-control", rows="3", placeholder="Add your comment...") }}
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-cog"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if bug.created_by == current_user.id or current_user.username == 'admin' %}
+                        <a href="{{ url_for('edit_bug', bug_id=bug.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i> Edit Bug
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('bugs_list') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list"></i> All Bugs
+                        </a>
+                        <a href="{{ url_for('report_bug') }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-plus"></i> Report New Bug
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bug Statistics -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Bug Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary">{{ bug.comments.count() }}</h4>
+                                <small class="text-muted">Comments</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">
+                                {{ (bug.updated_at - bug.created_at).days }}
+                            </h4>
+                            <small class="text-muted">Days Old</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-expand textarea
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.querySelector('textarea[name="comment"]');
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    }
+});
+</script>
+{% endblock %}
