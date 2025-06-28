@@ -4,20 +4,32 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/frontend/$1"
     }
   ],
   "env": {
-    "FLASK_ENV": "production"
+    "FLASK_ENV": "production",
+    "MONGO_USERNAME": "@mongo_username",
+    "MONGO_PASSWORD": "@mongo_password",
+    "MONGO_CLUSTER": "@mongo_cluster",
+    "MONGO_DATABASE": "@mongo_database",
+    "SECRET_KEY": "@secret_key"
   },
   "functions": {
     "api/index.py": {

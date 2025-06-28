@@ -1,16 +1,8 @@
-from flask import Flask
-import sys
-import os
+from app import app
 
-# Add the parent directory to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Vercel entry point - the app is already created in app.py
+# This file serves as the entry point for Vercel deployment
 
-from app import create_app
-
-# Create Flask app for Vercel
-app = create_app('production')
-
-# Vercel serverless function handler
-def handler(request):
-    """Vercel serverless function handler"""
-    return app(request.environ, lambda status, headers: None)
+# For local development
+if __name__ == "__main__":
+    app.run(debug=True)
