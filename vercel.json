@@ -25,13 +25,5 @@
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }
-  ],
-  "env": {
-    "FLASK_ENV": "production",
-    "MONGO_USERNAME": "@mongo_username",
-    "MONGO_PASSWORD": "@mongo_password",
-    "MONGO_CLUSTER": "@mongo_cluster",
-    "MONGO_DATABASE": "@mongo_database",
-    "SECRET_KEY": "@secret_key"
-  }
+  ]
 }
