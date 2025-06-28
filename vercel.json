@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
     },
     {
       "src": "frontend/package.json",
@@ -30,10 +33,5 @@
     "MONGO_CLUSTER": "@mongo_cluster",
     "MONGO_DATABASE": "@mongo_database",
     "SECRET_KEY": "@secret_key"
-  },
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 30
-    }
   }
 }
