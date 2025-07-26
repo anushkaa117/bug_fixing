@@ -8,11 +8,20 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # GitHub Configuration
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = os.getenv('GITHUB_ACCESS_KEY')
+if not GITHUB_TOKEN:
+    print("❌ GITHUB_ACCESS_KEY environment variable not found!")
+    print("Please set GITHUB_ACCESS_KEY in your .env file")
+    sys.exit(1)
+
 REPO_NAME = "bug_fixing"
-BRANCH_NAME = "main"
+BRANCH_NAME = "docker-optimizations"
 
 def run_command(command, description):
     """Run a shell command and handle errors"""
