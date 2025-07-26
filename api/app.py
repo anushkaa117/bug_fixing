@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_mongoengine import MongoEngine
 from flask_jwt_extended import JWTManager
+from flask_caching import Cache
+import redis
 import os
 from dotenv import load_dotenv
 import urllib.parse
@@ -37,6 +39,24 @@ app.config['MONGODB_SETTINGS'] = {
 # Initialize MongoDB
 db = MongoEngine(app)
 
+# Redis configuration
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'localhost'),
+    port=int(os.getenv('REDIS_PORT', 6379)),
+    db=0,
+    decode_responses=True
+)
+
+# Flask-Caching configuration
+cache_config = {
+    'CACHE_TYPE': 'redis',
+    'CACHE_REDIS_URL': f"redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/0",
+    'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes
+    'CACHE_KEY_PREFIX': 'bugtracker_'
+}
+
+cache = Cache(app, config=cache_config)
+
 # Import models
 from models_mongo import User, Bug, BugComment
 
@@ -48,6 +68,15 @@ from routes.user_routes import user_bp
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(bug_bp, url_prefix='/api/bugs')
 app.register_blueprint(user_bp, url_prefix='/api/users')
+
+# Initialize cache
+@app.before_first_request
+def initialize_cache():
+    """Initialize cache on first request"""
+    try:
+        cache.init_app(app, config=cache_config)
+    except Exception as e:
+        print(f"Cache initialization failed: {e}")
 
 @app.route('/api/health')
 def health_check():
