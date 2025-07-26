@@ -15,11 +15,542 @@ A modern, responsive bug tracking system built with Flask, designed for efficien
 
 ## 🛠️ Technology Stack
 
-- **Backend**: Python Flask with SQLAlchemy ORM
-- **Frontend**: Bootstrap 5, Font Awesome, Custom CSS/JS
-- **Database**: SQLite (development) / PostgreSQL (production)
+- **Backend**: Python Flask with MongoDB (MongoEngine ODM)
+- **Frontend**: React with Vite, Material-UI, Zustand
+- **Database**: MongoDB Atlas (Cloud)
+- **Cache**: Redis for API response caching
 - **Deployment**: Vercel Serverless Functions
-- **Development**: Docker & Docker Compose
+- **Development**: Docker & Docker Compose with multi-stage builds
+
+## 📊 Project Architecture
+
+```mermaid
+graph TB
+    %% User Interface Layer
+    subgraph "User Interface Layer"
+        UI[User Interface]
+        UI --> |Accesses| Frontend
+    end
+
+    %% Frontend Layer
+    subgraph "Frontend (React + Vite)"
+        Frontend[React Application]
+        
+        subgraph "Frontend Components"
+            Navbar[Navbar Component]
+            Sidebar[Sidebar Component]
+        end
+        
+        subgraph "Frontend Pages"
+            Dashboard[Dashboard Page]
+            BugList[Bug List Page]
+            BugDetail[Bug Detail Page]
+            CreateBug[Create Bug Page]
+            Login[Login Page]
+            Register[Register Page]
+        end
+        
+        subgraph "Frontend State Management"
+            AuthStore[Auth Store - Zustand]
+            BugStore[Bug Store - Zustand]
+        end
+        
+        subgraph "Frontend Services"
+            APIService[API Service]
+        end
+        
+        Frontend --> Navbar
+        Frontend --> Sidebar
+        Frontend --> Dashboard
+        Frontend --> BugList
+        Frontend --> BugDetail
+        Frontend --> CreateBug
+        Frontend --> Login
+        Frontend --> Register
+        Frontend --> AuthStore
+        Frontend --> BugStore
+        Frontend --> APIService
+    end
+
+    %% API Gateway Layer
+    subgraph "API Gateway"
+        Vercel[Vercel Serverless]
+        Vercel --> |Routes to| API
+    end
+
+    %% Backend Layer
+    subgraph "Backend (Flask API)"
+        API[Flask Application]
+        
+        subgraph "API Routes"
+            AuthRoutes[Auth Routes]
+            BugRoutes[Bug Routes]
+            UserRoutes[User Routes]
+        end
+        
+        subgraph "API Models"
+            UserModel[User Model]
+            BugModel[Bug Model]
+            BugCommentModel[Bug Comment Model]
+        end
+        
+        subgraph "API Middleware"
+            JWT[JWT Authentication]
+            CORS[CORS Middleware]
+            Cache[Redis Caching]
+        end
+        
+        API --> AuthRoutes
+        API --> BugRoutes
+        API --> UserRoutes
+        API --> UserModel
+        API --> BugModel
+        API --> BugCommentModel
+        API --> JWT
+        API --> CORS
+        API --> Cache
+    end
+
+    %% Database Layer
+    subgraph "Database Layer"
+        MongoDB[(MongoDB Atlas)]
+        
+        subgraph "Collections"
+            UsersCollection[Users Collection]
+            BugsCollection[Bugs Collection]
+        end
+        
+        MongoDB --> UsersCollection
+        MongoDB --> BugsCollection
+    end
+
+    %% Cache Layer
+    subgraph "Cache Layer"
+        Redis[(Redis Cache)]
+    end
+
+    %% Deployment Layer
+    subgraph "Deployment & Infrastructure"
+        Docker[Docker & Docker Compose]
+        
+        subgraph "Containers"
+            APIContainer[API Container]
+            FrontendContainer[Frontend Container]
+            RedisContainer[Redis Container]
+        end
+        
+        subgraph "Deployment Scripts"
+            LocalDeploy[local-deploy.sh]
+            DeployScript[deploy.sh]
+        end
+        
+        Docker --> APIContainer
+        Docker --> FrontendContainer
+        Docker --> RedisContainer
+        Docker --> LocalDeploy
+        Docker --> DeployScript
+    end
+
+    %% External Services
+    subgraph "External Services"
+        VercelDeploy[Vercel Deployment]
+        MongoDBAtlas[MongoDB Atlas Cloud]
+    end
+
+    %% Connections
+    UI --> Frontend
+    Frontend --> |HTTP Requests| APIService
+    APIService --> |API Calls| API
+    API --> |Database Operations| MongoDB
+    API --> |Cache Operations| Redis
+    
+    %% Deployment Connections
+    Docker --> APIContainer
+    Docker --> FrontendContainer
+    Docker --> RedisContainer
+    APIContainer --> API
+    FrontendContainer --> Frontend
+    RedisContainer --> Redis
+    
+    %% External Connections
+    Vercel --> API
+    MongoDB --> MongoDBAtlas
+
+    %% Styling
+    classDef frontendClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef backendClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef databaseClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef deploymentClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef externalClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class Frontend,Navbar,Sidebar,Dashboard,BugList,BugDetail,CreateBug,Login,Register,AuthStore,BugStore,APIService frontendClass
+    class API,AuthRoutes,BugRoutes,UserRoutes,UserModel,BugModel,BugCommentModel,JWT,CORS,Cache backendClass
+    class MongoDB,UsersCollection,BugsCollection,Redis databaseClass
+    class Docker,APIContainer,FrontendContainer,RedisContainer,LocalDeploy,DeployScript deploymentClass
+    class Vercel,VercelDeploy,MongoDBAtlas externalClass
+```
+
+## 🔄 Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as API
+    participant M as MongoDB
+    participant R as Redis
+    participant V as Vercel
+
+    %% Authentication Flow
+    U->>F: Login/Register
+    F->>A: POST /api/auth/login
+    A->>M: Query User Collection
+    M-->>A: User Data
+    A->>A: Generate JWT Token
+    A-->>F: JWT Token
+    F->>F: Store Token in AuthStore
+    F-->>U: Redirect to Dashboard
+
+    %% Bug Management Flow
+    U->>F: Create/View/Edit Bug
+    F->>A: API Request with JWT
+    A->>A: Validate JWT Token
+    A->>R: Check Cache First
+    alt Cache Hit
+        R-->>A: Cached Response
+    else Cache Miss
+        A->>M: Database Operation
+        M-->>A: Data Response
+        A->>R: Cache Response
+    end
+    A-->>F: API Response
+    F->>F: Update BugStore
+    F-->>U: Update UI
+
+    %% Dashboard Flow
+    U->>F: Access Dashboard
+    F->>A: GET /api/bugs/stats
+    A->>R: Check Cache (5min TTL)
+    alt Cache Hit
+        R-->>A: Cached Statistics
+    else Cache Miss
+        A->>M: Aggregate Bug Data
+        M-->>A: Statistics
+        A->>R: Cache for 5 minutes
+    end
+    A-->>F: Dashboard Data
+    F->>F: Update Dashboard
+    F-->>U: Display Statistics
+```
+
+## 🏗️ Component Architecture
+
+```mermaid
+graph LR
+    %% Frontend Components
+    subgraph "Frontend Architecture"
+        App[App.jsx]
+        Router[React Router]
+        
+        subgraph "Components"
+            Nav[Navbar]
+            Side[Sidebar]
+        end
+        
+        subgraph "Pages"
+            Dash[Dashboard]
+            BugL[BugList]
+            BugD[BugDetail]
+            CreateB[CreateBug]
+            Log[Login]
+            Reg[Register]
+        end
+        
+        subgraph "State Management"
+            AuthS[AuthStore]
+            BugS[BugStore]
+        end
+        
+        subgraph "Services"
+            APIS[API Service]
+        end
+        
+        App --> Router
+        Router --> Nav
+        Router --> Side
+        Router --> Dash
+        Router --> BugL
+        Router --> BugD
+        Router --> CreateB
+        Router --> Log
+        Router --> Reg
+        
+        Dash --> AuthS
+        BugL --> BugS
+        BugD --> BugS
+        CreateB --> BugS
+        Log --> AuthS
+        Reg --> AuthS
+        
+        AuthS --> APIS
+        BugS --> APIS
+    end
+
+    %% Backend Components
+    subgraph "Backend Architecture"
+        Flask[Flask App]
+        
+        subgraph "Blueprints"
+            AuthBP[Auth Blueprint]
+            BugBP[Bug Blueprint]
+            UserBP[User Blueprint]
+        end
+        
+        subgraph "Models"
+            UserM[User Model]
+            BugM[Bug Model]
+            CommentM[Comment Model]
+        end
+        
+        subgraph "Middleware"
+            JWTM[JWT Manager]
+            CORS[CORS]
+            CacheM[Redis Cache]
+        end
+        
+        Flask --> AuthBP
+        Flask --> BugBP
+        Flask --> UserBP
+        
+        AuthBP --> UserM
+        BugBP --> BugM
+        BugBP --> CommentM
+        UserBP --> UserM
+        
+        Flask --> JWTM
+        Flask --> CORS
+        Flask --> CacheM
+    end
+
+    %% Database Schema
+    subgraph "Database Schema"
+        subgraph "User Collection"
+            UserDoc[User Document]
+            UserFields[username, email, password_hash, role, created_at]
+        end
+        
+        subgraph "Bug Collection"
+            BugDoc[Bug Document]
+            BugFields[title, description, status, priority, reporter, assignee, comments]
+            CommentDoc[Comment Document]
+            CommentFields[author, content, created_at]
+        end
+        
+        UserDoc --> UserFields
+        BugDoc --> BugFields
+        BugDoc --> CommentDoc
+        CommentDoc --> CommentFields
+    end
+
+    %% Connections
+    APIS --> Flask
+    AuthBP --> UserDoc
+    BugBP --> BugDoc
+    UserBP --> UserDoc
+```
+
+## 🚀 Deployment Architecture
+
+```mermaid
+graph TB
+    %% Development Environment
+    subgraph "Development Environment"
+        subgraph "Local Docker Setup"
+            LocalAPI[API Container :5000]
+            LocalFrontend[Frontend Container :3000]
+            LocalRedis[Redis Container :6379]
+        end
+        
+        subgraph "Local Files"
+            LocalDeployScript[local-deploy.sh]
+            DockerCompose[docker-compose.yml]
+            DockerfileAPI[Dockerfile.api]
+            DockerfileFrontend[Dockerfile.frontend]
+        end
+        
+        LocalDeployScript --> DockerCompose
+        DockerCompose --> LocalAPI
+        DockerCompose --> LocalFrontend
+        DockerCompose --> LocalRedis
+        DockerCompose --> DockerfileAPI
+        DockerCompose --> DockerfileFrontend
+    end
+
+    %% Production Environment
+    subgraph "Production Environment"
+        subgraph "Vercel Deployment"
+            VercelAPI[Vercel Serverless API]
+            VercelFrontend[Vercel Static Frontend]
+        end
+        
+        subgraph "Cloud Services"
+            MongoDBAtlas[MongoDB Atlas]
+            VercelConfig[vercel.json]
+        end
+        
+        VercelAPI --> MongoDBAtlas
+        VercelFrontend --> VercelAPI
+        VercelConfig --> VercelAPI
+        VercelConfig --> VercelFrontend
+    end
+
+    %% Environment Variables
+    subgraph "Configuration"
+        subgraph "Environment Variables"
+            SecretKey[SECRET_KEY]
+            MongoUser[MONGO_USERNAME]
+            MongoPass[MONGO_PASSWORD]
+            MongoCluster[MONGO_CLUSTER]
+            MongoDB[MONGO_DATABASE]
+            RedisHost[REDIS_HOST]
+            RedisPort[REDIS_PORT]
+        end
+        
+        subgraph "Configuration Files"
+            Requirements[requirements.txt]
+            PackageJSON[package.json]
+            ViteConfig[vite.config.js]
+        end
+    end
+
+    %% Connections
+    LocalAPI --> SecretKey
+    LocalAPI --> MongoUser
+    LocalAPI --> MongoPass
+    LocalAPI --> MongoCluster
+    LocalAPI --> MongoDB
+    LocalAPI --> RedisHost
+    LocalAPI --> RedisPort
+    
+    VercelAPI --> SecretKey
+    VercelAPI --> MongoUser
+    VercelAPI --> MongoPass
+    VercelAPI --> MongoCluster
+    VercelAPI --> MongoDB
+    VercelAPI --> RedisHost
+    VercelAPI --> RedisPort
+    
+    LocalFrontend --> PackageJSON
+    LocalFrontend --> ViteConfig
+    VercelFrontend --> PackageJSON
+    VercelFrontend --> ViteConfig
+    
+    LocalAPI --> Requirements
+    VercelAPI --> Requirements
+```
+
+## 🔧 API Endpoints Architecture
+
+```mermaid
+graph TD
+    %% API Root
+    API[Flask API]
+    
+    %% Auth Routes
+    subgraph "Authentication Routes (/api/auth)"
+        AuthLogin[POST /login]
+        AuthRegister[POST /register]
+        AuthLogout[POST /logout]
+        AuthRefresh[POST /refresh]
+    end
+    
+    %% Bug Routes
+    subgraph "Bug Management Routes (/api/bugs)"
+        BugList[GET / - List bugs]
+        BugCreate[POST / - Create bug]
+        BugGet[GET /:id - Get bug]
+        BugUpdate[PUT /:id - Update bug]
+        BugDelete[DELETE /:id - Delete bug]
+        BugComment[POST /:id/comments - Add comment]
+        BugStats[GET /stats - Get statistics]
+    end
+    
+    %% User Routes
+    subgraph "User Management Routes (/api/users)"
+        UserProfile[GET /profile - Get profile]
+        UserUpdate[PUT /profile - Update profile]
+        UserList[GET / - List users]
+        UserGet[GET /:id - Get user]
+    end
+    
+    %% Health Check
+    HealthCheck[GET /api/health]
+    
+    %% Connections
+    API --> AuthLogin
+    API --> AuthRegister
+    API --> AuthLogout
+    API --> AuthRefresh
+    
+    API --> BugList
+    API --> BugCreate
+    API --> BugGet
+    API --> BugUpdate
+    API --> BugDelete
+    API --> BugComment
+    API --> BugStats
+    
+    API --> UserProfile
+    API --> UserUpdate
+    API --> UserList
+    API --> UserGet
+    
+    API --> HealthCheck
+```
+
+## 💾 Database Schema Architecture
+
+```mermaid
+erDiagram
+    USER {
+        ObjectId _id PK
+        string username UK
+        string email UK
+        string password_hash
+        string role
+        datetime created_at
+        boolean is_active
+    }
+    
+    BUG {
+        ObjectId _id PK
+        string title
+        string description
+        string status
+        string priority
+        array tags
+        string steps_to_reproduce
+        string expected_behavior
+        string environment
+        ObjectId reporter FK
+        ObjectId assignee FK
+        datetime created_at
+        datetime updated_at
+        array comments
+    }
+    
+    BUG_COMMENT {
+        ObjectId author FK
+        string content
+        datetime created_at
+    }
+    
+    %% Relationships
+    USER ||--o{ BUG : "reports"
+    USER ||--o{ BUG : "assigned_to"
+    USER ||--o{ BUG_COMMENT : "writes"
+    BUG ||--o{ BUG_COMMENT : "contains"
+```
 
 ## 📋 Prerequisites
 
