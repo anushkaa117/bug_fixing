@@ -138,7 +138,7 @@ def push_to_github():
     print("🚀 Pushing to GitHub...")
     
     # Set up remote with token
-    remote_url = f"https://{GITHUB_TOKEN}@github.com/your-username/{REPO_NAME}.git"
+    remote_url = f"https://{GITHUB_TOKEN}@github.com/anushkaa117/{REPO_NAME}.git"
     
     # Check if remote exists
     result = subprocess.run("git remote -v", shell=True, capture_output=True, text=True)
