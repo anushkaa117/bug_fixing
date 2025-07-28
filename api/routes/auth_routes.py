@@ -1,10 +1,20 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect, url_for, session
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import check_password_hash, generate_password_hash
 from models_mongo import User
 import re
+import os
+import requests
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import json
 
 auth_bp = Blueprint('auth', __name__)
+
+# Google OAuth configuration
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI')
 
 def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -47,7 +57,8 @@ def register():
             username=username,
             email=email,
             password_hash=generate_password_hash(password),
-            role='user'
+            role='user',
+            auth_provider='local'
         )
         user.save()
         
@@ -104,6 +115,99 @@ def login():
     except Exception as e:
         return jsonify({'message': 'Login failed', 'error': str(e)}), 500
 
+@auth_bp.route('/google/login', methods=['GET'])
+def google_login():
+    """Initiate Google OAuth login"""
+    google_auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+        f"response_type=code&"
+        f"scope=openid%20email%20profile&"
+        f"access_type=offline&"
+        f"prompt=consent"
+    )
+    return jsonify({'auth_url': google_auth_url})
+
+@auth_bp.route('/google/callback', methods=['GET'])
+def google_callback():
+    """Handle Google OAuth callback"""
+    try:
+        code = request.args.get('code')
+        if not code:
+            return jsonify({'message': 'Authorization code not provided'}), 400
+
+        # Exchange code for tokens
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': GOOGLE_REDIRECT_URI
+        }
+        
+        token_response = requests.post(token_url, data=token_data)
+        token_response.raise_for_status()
+        tokens = token_response.json()
+        
+        # Get user info from Google
+        userinfo_response = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f"Bearer {tokens['access_token']}"}
+        )
+        userinfo_response.raise_for_status()
+        google_user_info = userinfo_response.json()
+        
+        # Check if user exists
+        user = User.objects(google_id=google_user_info['id']).first()
+        
+        if not user:
+            # Check if email already exists
+            existing_user = User.objects(email=google_user_info['email']).first()
+            if existing_user:
+                return jsonify({'message': 'Email already registered with different method'}), 400
+            
+            # Create new user
+            username = google_user_info.get('given_name', '') + google_user_info.get('family_name', '')
+            if not username:
+                username = google_user_info['email'].split('@')[0]
+            
+            # Ensure unique username
+            base_username = username
+            counter = 1
+            while User.objects(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            user = User(
+                username=username,
+                email=google_user_info['email'],
+                google_id=google_user_info['id'],
+                google_picture=google_user_info.get('picture'),
+                auth_provider='google',
+                role='user'
+            )
+            user.save()
+        
+        # Create access token
+        access_token = create_access_token(identity=str(user.id))
+        
+        return jsonify({
+            'message': 'Google login successful',
+            'user': {
+                'id': str(user.id),
+                'username': user.username,
+                'email': user.email,
+                'role': user.role,
+                'picture': user.google_picture
+            },
+            'token': access_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Google authentication failed', 'error': str(e)}), 500
+
 @auth_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
@@ -120,6 +224,8 @@ def get_profile():
                 'username': user.username,
                 'email': user.email,
                 'role': user.role,
+                'picture': user.google_picture,
+                'auth_provider': user.auth_provider,
                 'created_at': user.created_at.isoformat() if user.created_at else None
             }
         }), 200

@@ -13,15 +13,18 @@ class User(Document, UserMixin):
     
     meta = {
         'collection': 'users',
-        'indexes': ['username', 'email']
+        'indexes': ['username', 'email', 'google_id']
     }
     
     username = fields.StringField(max_length=50, required=True, unique=True)
     email = fields.EmailField(required=True, unique=True)
-    password_hash = fields.StringField(required=True)
+    password_hash = fields.StringField(required=False)  # Make optional for Google OAuth
+    google_id = fields.StringField(unique=True, sparse=True)  # For Google OAuth
+    google_picture = fields.URLField()  # Profile picture from Google
     role = fields.StringField(max_length=20, default='user', choices=['user', 'admin'])
     created_at = fields.DateTimeField(default=datetime.utcnow)
     is_active = fields.BooleanField(default=True)
+    auth_provider = fields.StringField(default='local', choices=['local', 'google'])  # Track auth method
     
     def set_password(self, password):
         """Hash and set password"""
@@ -29,6 +32,8 @@ class User(Document, UserMixin):
     
     def check_password(self, password):
         """Check if provided password matches hash"""
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
     
     def get_id(self):
