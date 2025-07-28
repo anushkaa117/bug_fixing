@@ -1,3 +1,4 @@
+# VERSION: 2.0.1 - Fixed Flask 2.3.0 compatibility
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -67,15 +68,6 @@ from routes.user_routes import user_bp
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(bug_bp, url_prefix='/api/bugs')
 app.register_blueprint(user_bp, url_prefix='/api/users')
-
-# Initialize cache
-@app.before_first_request
-def initialize_cache():
-    """Initialize cache on first request"""
-    try:
-        cache.init_app(app, config=cache_config)
-    except Exception as e:
-        print(f"Cache initialization failed: {e}")
 
 @app.route('/api/health')
 def health_check():
