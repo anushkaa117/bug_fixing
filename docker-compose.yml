@@ -1,57 +1,7 @@
 version: '3.8'
 
 services:
-  # Flask API Backend
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
-      - SECRET_KEY=dev-secret-key-change-in-production
-      # MongoDB Atlas Configuration (Active)
-      - MONGO_USERNAME=2024081204
-      - MONGO_PASSWORD=anushka
-      - MONGO_CLUSTER=cluster0.fn8yhfs.mongodb.net
-      - MONGO_DATABASE=it
-      - MONGODB_HOST=mongodb+srv://2024081204:anushka@cluster0.fn8yhfs.mongodb.net/it?retryWrites=true&w=majority&appName=Cluster0
-      
-    volumes:
-      - ./api:/app
-      - /app/__pycache__
-    depends_on:
-      - redis
-    networks:
-      - bugtracker-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # React Frontend
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:5000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - api
-    networks:
-      - bugtracker-network
-    stdin_open: true
-    tty: true
-
+  # Redis Cache
   redis:
     image: redis:7-alpine
     ports:
@@ -65,9 +15,71 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Flask API Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: development  # Use development stage
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # MongoDB Atlas Configuration (Active)
+      - MONGO_USERNAME=2024081204
+      - MONGO_PASSWORD=anushka
+      - MONGO_CLUSTER=cluster0.fn8yhfs.mongodb.net
+      - MONGO_DATABASE=it
+      - MONGODB_HOST=mongodb+srv://2024081204:anushka@cluster0.fn8yhfs.mongodb.net/it?retryWrites=true&w=majority&appName=Cluster0
+    volumes:
+      # Optimized volume mounts
+      - ./api:/app/api:delegated  # Use delegated mode
+      - ./models_mongo.py:/app/models_mongo.py:delegated
+      - /app/__pycache__  # Exclude Python cache
+      - /app/.pytest_cache  # Exclude test cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bugtracker-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import requests; requests.get(\"http://localhost:5000/api/health\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: development  # Use development stage
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    volumes:
+      # Optimized volume mounts
+      - ./frontend:/app:delegated  # Use delegated mode
+      - /app/node_modules  # Exclude node_modules
+      - /app/dist  # Exclude build output
+    depends_on:
+      - api
+    networks:
+      - bugtracker-network
+    stdin_open: true
+    tty: true
 
 volumes:
   redis_data:
+    driver: local
 
 networks:
   bugtracker-network:

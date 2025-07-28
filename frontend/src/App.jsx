@@ -7,6 +7,7 @@ import { Box } from '@mui/material';
 // Components
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import GoogleCallback from './components/GoogleCallback';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -42,6 +43,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/google/callback" element={<GoogleCallback />} />
             <Route path="*" element={<Login />} />
           </Routes>
         </Router>
@@ -71,6 +73,7 @@ function App() {
               <Route path="/bugs" element={<BugList />} />
               <Route path="/bugs/:id" element={<BugDetail />} />
               <Route path="/create-bug" element={<CreateBug />} />
+              <Route path="/auth/google/callback" element={<GoogleCallback />} />
             </Routes>
           </Box>
         </Box>
