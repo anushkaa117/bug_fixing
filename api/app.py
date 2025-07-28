@@ -1,10 +1,13 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from mongoengine import connect, disconnect
 from flask_jwt_extended import JWTManager
 from flask_caching import Cache
 import redis
-import os
 from dotenv import load_dotenv
 import urllib.parse
 
