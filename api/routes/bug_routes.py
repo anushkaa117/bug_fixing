@@ -3,14 +3,11 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models_mongo import Bug, User, BugComment
 from datetime import datetime
 from bson import ObjectId
-from flask_caching import Cache
-from app import cache
 
 bug_bp = Blueprint('bugs', __name__)
 
 @bug_bp.route('', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=60)  # Cache for 1 minute
 def get_bugs():
     try:
         # Get query parameters for filtering
@@ -171,10 +168,6 @@ def create_bug():
         )
         bug.save()
         
-        # Invalidate related caches
-        cache.delete('bugtracker_bugs_list')
-        cache.delete('bugtracker_bug_stats')
-        
         return jsonify({
             'message': 'Bug created successfully',
             'bug': {
@@ -239,11 +232,6 @@ def update_bug(bug_id):
         bug.updated_at = datetime.utcnow()
         bug.save()
         
-        # Invalidate related caches
-        cache.delete(f'bugtracker_bug_{bug_id}')
-        cache.delete('bugtracker_bugs_list')
-        cache.delete('bugtracker_bug_stats')
-        
         return jsonify({
             'message': 'Bug updated successfully',
             'bug': {
@@ -267,11 +255,6 @@ def delete_bug(bug_id):
             return jsonify({'message': 'Bug not found'}), 404
         
         bug.delete()
-        
-        # Invalidate related caches
-        cache.delete(f'bugtracker_bug_{bug_id}')
-        cache.delete('bugtracker_bugs_list')
-        cache.delete('bugtracker_bug_stats')
         
         return jsonify({'message': 'Bug deleted successfully'}), 200
         
@@ -309,10 +292,6 @@ def add_comment(bug_id):
         bug.updated_at = datetime.utcnow()
         bug.save()
         
-        # Invalidate related caches
-        cache.delete(f'bugtracker_bug_{bug_id}')
-        cache.delete('bugtracker_bugs_list')
-        
         return jsonify({
             'message': 'Comment added successfully',
             'comment': {
@@ -330,7 +309,6 @@ def add_comment(bug_id):
 
 @bug_bp.route('/stats', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def get_bug_stats():
     try:
         # Get status counts
