@@ -44,6 +44,8 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   logout: () => api.post('/auth/logout'),
+  googleLogin: () => api.get('/auth/google/login'),
+  googleCallback: (code) => api.get(`/auth/google/callback?code=${code}`),
 };
 
 export const bugAPI = {

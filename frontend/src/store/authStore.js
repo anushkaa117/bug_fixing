@@ -64,6 +64,48 @@ const useAuthStore = create(
         }
       },
 
+      googleLogin: async () => {
+        set({ loading: true, error: null });
+        try {
+          // Get Google auth URL
+          const response = await axios.get('/api/auth/google/login');
+          const { auth_url } = response.data;
+          
+          // Redirect to Google OAuth
+          window.location.href = auth_url;
+        } catch (error) {
+          set({
+            loading: false,
+            error: error.response?.data?.message || 'Google login failed'
+          });
+          return { success: false, error: error.response?.data?.message };
+        }
+      },
+
+      handleGoogleCallback: async (userData, token) => {
+        set({ loading: true, error: null });
+        try {
+          set({
+            user: userData,
+            token,
+            isAuthenticated: true,
+            loading: false,
+            error: null
+          });
+
+          // Set axios default header
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          return { success: true };
+        } catch (error) {
+          set({
+            loading: false,
+            error: error.response?.data?.message || 'Google callback failed'
+          });
+          return { success: false, error: error.response?.data?.message };
+        }
+      },
+
       logout: () => {
         set({
           user: null,
