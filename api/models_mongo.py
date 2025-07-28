@@ -4,11 +4,10 @@ Using MongoEngine for MongoDB integration
 """
 
 from datetime import datetime
-from flask_login import UserMixin
 from mongoengine import Document, EmbeddedDocument, fields
 from werkzeug.security import generate_password_hash, check_password_hash
 
-class User(Document, UserMixin):
+class User(Document):
     """User model for authentication and profile management"""
     
     meta = {

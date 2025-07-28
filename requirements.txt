@@ -25,7 +25,6 @@ requests==2.31.0
 # MongoDB Dependencies
 pymongo[srv]==4.13.2
 mongoengine==0.29.1
-Flask-MongoEngine==1.0.0
 dnspython==2.7.0
 
 # Utilities

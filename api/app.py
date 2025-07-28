@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_mongoengine import MongoEngine
+from mongoengine import connect, disconnect
 from flask_jwt_extended import JWTManager
 from flask_caching import Cache
 import redis
@@ -32,12 +32,8 @@ if username and password and cluster:
 else:
     mongodb_uri = 'mongodb://localhost:27017/bugtracker'
 
-app.config['MONGODB_SETTINGS'] = {
-    'host': mongodb_uri
-}
-
-# Initialize MongoDB
-db = MongoEngine(app)
+# Connect to MongoDB using native MongoEngine
+connect(db=database, host=mongodb_uri)
 
 # Redis configuration
 redis_client = redis.Redis(
